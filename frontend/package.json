@@ -1,0 +1,8 @@
+{
+  "name": "@jdrive/web",
+  "private": true,
+  "type": "module",
+  "scripts": {"dev": "vite --host 0.0.0.0", "build": "vite build", "check": "svelte-check --tsconfig ./tsconfig.json", "test": "node --test"},
+  "dependencies": {"@sveltejs/vite-plugin-svelte": "^5.0.3", "svelte": "^5.20.2", "vite": "^6.1.0"},
+  "devDependencies": {"svelte-check": "^4.1.4", "typescript": "~5.7.2"}
+}

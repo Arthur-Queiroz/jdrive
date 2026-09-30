@@ -1,37 +1,28 @@
-# JDrive Specs
+# JDrive
 
-This package contains the MVP specification for JDrive, a lightweight personal file-transfer application hosted on an existing VPS.
+Aplicação pessoal de transferência e armazenamento de arquivos. As especificações do MVP estão nos arquivos numerados na raiz; a ordem de execução está em `15-implementation-plan.md`.
 
-## Locked Stack
+## Stack
 
-- Svelte + Vite + TypeScript
-- Fastify + TypeScript
-- PostgreSQL
-- Drizzle ORM / Drizzle Kit
-- Filesystem storage
-- Argon2id authentication
-- Docker Compose
-- Caddy
+Svelte + Vite + TypeScript (SPA), Fastify + TypeScript, PostgreSQL/Drizzle (a configurar), armazenamento persistente no filesystem. A stack Svelte/Fastify foi explicitamente definida nas specs do produto.
 
-## Default Limits
+## Desenvolvimento
 
-```env
-MAX_FILE_SIZE_MB=1024
-MAX_STORAGE_GB=10
-SESSION_TTL_DAYS=7
+Requisitos: Node.js 22+ e pnpm 11+.
+
+```sh
+cp .env.example .env # ajuste DATABASE_URL; nunca faça commit do .env
+pnpm install
+pnpm dev:api
+pnpm dev:web
 ```
 
-## MVP Highlights
+O frontend Vite está em `http://localhost:5173`, API em `http://localhost:3000`; `/health` é o health check inicial. Comandos `pnpm build`, `pnpm test`, `pnpm lint`; `make dev`, `make test`, `make lint`, `make build`, `make migrate`, `make migrate-down` e `make migrate-status` são atalhos de projeto.
 
-- Authenticated-only application
-- Drag-and-drop
-- Multiple uploads
-- Per-file upload progress
-- Native browser downloads
-- Search by file name
-- File deletion
-- Storage usage indicator
-- SHA-256 checksums
-- UUID-based physical storage keys
+## Docker
 
-Start with `00-overview.md`, then use `15-implementation-plan.md` as the execution order for loop engineering.
+`Dockerfile` e `compose.yaml` são ponto de partida; o serviço ainda não entrega o build estático do frontend e não deve ser tratado como deployment pronto. O goal precisa completar e validar a composição antes de qualquer deploy. Configure `.env` e armazenamento persistente; Caddy e migrações ficam para as fases especificadas.
+
+## Status
+
+Bootstrap técnico inicial para iniciar o goal. A tela Svelte é apenas visual e não autentica; apenas `/health` existe na API. Não há banco, login nem operações de arquivo implementadas ainda.

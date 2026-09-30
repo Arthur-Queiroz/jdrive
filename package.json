@@ -1,0 +1,12 @@
+{
+  "name": "jdrive",
+  "private": true,
+  "packageManager": "pnpm@11.21.0",
+  "scripts": {
+    "dev:api": "pnpm --filter @jdrive/api dev",
+    "dev:web": "pnpm --filter @jdrive/web dev",
+    "build": "pnpm --filter @jdrive/api build && pnpm --filter @jdrive/web build",
+    "test": "pnpm --filter @jdrive/api test && pnpm --filter @jdrive/web test",
+    "lint": "pnpm --filter @jdrive/api lint && pnpm --filter @jdrive/web check"
+  }
+}
