@@ -3,7 +3,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { rm } from 'node:fs/promises';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
+import { sql } from 'drizzle-orm';
 import { createDatabase } from './db/client.js';
+import { waitForDatabase } from './startup.js';
 import { bootstrapInitialUser } from './auth.js';
 import { initializeStorage, storageConfig } from './storage/config.js';
 import { buildServer } from './app.js';
@@ -17,6 +19,7 @@ async function start() {
   const { db, pool, lockPool } = createDatabase();
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   try {
+    await waitForDatabase(async () => { await db.execute(sql`select 1`); });
     await migrate(db, { migrationsFolder: path.resolve(moduleDir, '../drizzle') });
     await bootstrapInitialUser(db);
     await initializeStorage();
