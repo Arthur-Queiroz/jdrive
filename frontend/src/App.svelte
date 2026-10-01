@@ -221,9 +221,8 @@
   <main class="checking"><span class="brand-mark">J</span><p>Conectando ao seu espaço…</p></main>
 {:else if !user}
   <main class="login-shell">
-    <div class="topline"><a class="brand" href="/" aria-label="JDrive"><span class="brand-mark">J</span><span>JDRIVE</span></a><span class="status">ESPAÇO PESSOAL</span></div>
-    <section class="hero"><p class="eyebrow">SEUS ARQUIVOS, NO SEU ESPAÇO</p><h1>Um lugar simples<br />para <em>seus arquivos.</em></h1><p class="intro">Privado por natureza. Acesse de qualquer dispositivo.</p></section>
-    <section class="login-card" aria-labelledby="login-title"><div class="login-icon">↗</div><h2 id="login-title">Entre no seu espaço</h2><p>Acesse seus arquivos com segurança.</p>
+    <div class="topline"><a class="brand" href="/" aria-label="JDrive"><span class="brand-mark">J</span><span>JDRIVE</span></a></div>
+    <section class="login-card" aria-labelledby="login-title"><h2 id="login-title">Entre no seu espaço</h2>
       <form onsubmit={login}>
         <label for="username">USUÁRIO</label><input id="username" bind:value={username} autocomplete="username" required placeholder="Seu usuário" />
         <label for="password">SENHA</label><input id="password" bind:value={password} type="password" autocomplete="current-password" required placeholder="Sua senha" />
@@ -231,12 +230,10 @@
         <button type="submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'} <span>→</span></button>
       </form><div class="secure"><span>●</span> CONEXÃO PRIVADA E PROTEGIDA</div>
     </section>
-    <footer><span>JDRIVE / ARQUIVOS PESSOAIS</span><span>SEU ESPAÇO. SUAS REGRAS.</span></footer>
   </main>
 {:else}
   <main class="app-shell">
     <header class="app-header"><a class="brand" href="/" aria-label="JDrive"><span class="brand-mark">J</span><span>JDRIVE</span></a><div class="user-menu"><span class="avatar">{user.username.slice(0, 1).toUpperCase()}</span><span class="user-name">{user.username}</span><button class="text-button" onclick={logout}>Sair</button></div></header>
-    <section class="welcome"><div><p class="eyebrow">SEU ESPAÇO PESSOAL</p><h1>Seus arquivos,<br class="mobile-break" /> <em>sempre por perto.</em></h1></div><p class="welcome-note">Armazenamento privado<br />e acessível em todos os seus dispositivos.</p></section>
     <section class="storage-card" aria-label="Uso do armazenamento"><div class="storage-top"><div><span class="eyebrow">ARMAZENAMENTO</span><p><strong>{formatBytes(storage.usedBytes)}</strong> <span class="muted">de {formatBytes(storage.maxBytes)}</span></p></div><span class="storage-percent">{storage.percentage.toFixed(1)}%</span></div><div class="progress-track"><div class="progress-fill" style={`width:${Math.min(100, storage.percentage)}%`}></div></div></section>
     {#if refreshError}<p class="error-text" role="status" aria-live="polite">{refreshError}</p>{/if}
     <section class:dragging class="dropzone" aria-label="Área para enviar arquivos" ondragover={(event) => { event.preventDefault(); dragging = true; }} ondragleave={() => dragging = false} ondrop={dropFiles}>
@@ -254,6 +251,5 @@
       {:else}<div class="empty-state"><div class="empty-icon">⌁</div><h3>{search ? 'Nenhum arquivo encontrado' : 'Seu espaço está pronto'}</h3><p>{search ? 'Tente buscar por outro nome.' : 'Envie seu primeiro arquivo para acessá-lo de qualquer dispositivo.'}</p></div>{/if}
       {#if hasMoreFiles}<div class="load-more"><button class="secondary-button" disabled={loadingMore} aria-busy={loadingMore} onclick={loadMoreFiles}>{loadingMore ? 'Carregando…' : 'Carregar mais arquivos'}</button></div>{/if}
     </section>
-    <footer><span>JDRIVE / ARQUIVOS PESSOAIS</span><span>SEU ESPAÇO. SUAS REGRAS.</span></footer>
   </main>
 {/if}
