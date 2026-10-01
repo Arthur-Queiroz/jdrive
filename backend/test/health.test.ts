@@ -2,7 +2,7 @@ import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildServer } from '../src/app.js';
 
-const app = buildServer();
+const app = buildServer({ database: {} as never, logger: false });
 after(async () => app.close());
 
 test('health endpoint returns operational status without sensitive data', async () => {

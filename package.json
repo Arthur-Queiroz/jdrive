@@ -3,10 +3,14 @@
   "private": true,
   "packageManager": "pnpm@11.21.0",
   "scripts": {
+    "dev": "concurrently -k -n api,web \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "pnpm --filter @jdrive/api dev",
     "dev:web": "pnpm --filter @jdrive/web dev",
     "build": "pnpm --filter @jdrive/api build && pnpm --filter @jdrive/web build",
     "test": "pnpm --filter @jdrive/api test && pnpm --filter @jdrive/web test",
     "lint": "pnpm --filter @jdrive/api lint && pnpm --filter @jdrive/web check"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }
