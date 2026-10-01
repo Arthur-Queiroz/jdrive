@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { createLatestRequest, fileSearchURL, formatBytes, uploadProgress } from './file-utils.js';
+  import { shouldApplyRefreshError } from './refresh-state.js';
 
   type User = { id: string; username: string };
   type StoredFile = { id: string; originalName: string; sizeBytes: number; mimeType: string | null; createdAt: string };
@@ -74,9 +75,11 @@
   }
   async function refreshStorage() { storage = await request<Storage>('/storage'); }
   async function refreshData() {
-    const results = await Promise.allSettled([refreshFiles(), refreshStorage()]);
+    const requestId = searchRequests.current();
+    const query = search;
+    const results = await Promise.allSettled([refreshFiles(query, false, requestId), refreshStorage()]);
     const failed = results.some((result) => result.status === 'rejected');
-    refreshError = failed ? 'Não foi possível atualizar alguns dados. Tente novamente.' : '';
+    if (shouldApplyRefreshError(searchRequests, requestId)) refreshError = failed ? 'Não foi possível atualizar alguns dados. Tente novamente.' : '';
   }
 
   onMount(() => {

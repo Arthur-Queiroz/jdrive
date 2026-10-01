@@ -14,6 +14,7 @@ export function createLatestRequest() {
   let sequence = 0;
   return {
     begin: () => ++sequence,
+    current: () => sequence,
     isCurrent: (request: number) => request === sequence,
   };
 }
