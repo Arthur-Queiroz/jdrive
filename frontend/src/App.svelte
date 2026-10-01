@@ -228,7 +228,7 @@
         <label for="password">SENHA</label><input id="password" bind:value={password} type="password" autocomplete="current-password" required placeholder="Sua senha" />
         {#if loginError}<div class="form-error" role="alert">{loginError}</div>{/if}
         <button type="submit" disabled={busy}>{busy ? 'Entrando…' : 'Entrar'} <span>→</span></button>
-      </form><div class="secure"><span>●</span> CONEXÃO PRIVADA E PROTEGIDA</div>
+      </form>
     </section>
   </main>
 {:else}
