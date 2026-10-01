@@ -1,0 +1,35 @@
+{
+  "name": "@jdrive/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "test": "cross-env FILES_DIR=.test-data/files TMP_DIR=.test-data/tmp MAX_FILE_SIZE_MB=2 MAX_STORAGE_GB=0.003 tsx --test --test-concurrency=1 test/*.test.ts",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:check": "drizzle-kit check",
+    "db:status": "tsx scripts/migration-status.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.2",
+    "@fastify/multipart": "^10.1.2",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/static": "^10.1.5",
+    "argon2": "^0.45.1",
+    "dotenv": "^18.0.4",
+    "drizzle-orm": "^0.45.3",
+    "fastify": "^5.2.1",
+    "pg": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@types/pg": "^8.23.1",
+    "cross-env": "^10.1.0",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  }
+}

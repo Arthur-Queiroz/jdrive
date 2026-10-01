@@ -1,0 +1,76 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: jdrive_test
+          POSTGRES_USER: jdrive_test
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jdrive_test -d jdrive_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://jdrive_test:${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/jdrive_test
+      TEST_DATABASE_URL: postgres://jdrive_test:${{ github.run_id }}-${{ github.run_attempt }}@localhost:5432/jdrive_test
+      ALLOW_DESTRUCTIVE_TEST_DB: '1'
+      SESSION_SECRET: ${{ github.run_id }}-${{ github.run_attempt }}-ci-session-secret-test-only
+      NODE_ENV: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm --filter @jdrive/api db:migrate
+      - run: pnpm --filter @jdrive/api db:status
+      - run: pnpm test
+      - run: pnpm build
+        env:
+          NODE_ENV: production
+
+  build-image:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: jdrive:ci
+
+  release:
+    if: github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
+    needs: [verify, build-image]
+    permissions:
+      contents: read
+      packages: write
+    uses: Arthur-Queiroz/vps-deploy/.github/workflows/app-deploy.yml@main
+    with:
+      app-id: jdrive
+      image-repo: arthur-queiroz/jdrive
+    secrets:
+      DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+      VPS_HOST: ${{ secrets.VPS_HOST }}

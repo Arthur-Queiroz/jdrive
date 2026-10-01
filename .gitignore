@@ -1,0 +1,15 @@
+node_modules/
+**/node_modules/
+**/dist/
+.env
+.env.*
+!.env.example
+data/
+coverage/
+.deploy-check/
+.test-data/
+.test-data-postgres/
+.test-data-postgres-lock/
+secrets.env
+**/secrets.env
+*.pem
