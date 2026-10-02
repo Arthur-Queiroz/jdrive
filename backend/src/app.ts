@@ -18,7 +18,8 @@ export function buildServer(options: { database?: AppDatabase; logger?: boolean 
   const app = Fastify({
     logger: options.logger ?? false,
     trustProxy: process.env.NODE_ENV === 'production',
-    bodyLimit: 1024 * 1024,
+    // Corpo máximo coerente com o limite por arquivo (uploads multipart 1:1).
+    bodyLimit: storageConfig.maxFileBytes,
   });
 
   app.addHook('onSend', async (_request, reply, payload) => {
