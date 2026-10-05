@@ -10,6 +10,7 @@ import { bootstrapInitialUser } from './auth.js';
 import { initializeStorage, storageConfig } from './storage/config.js';
 import { buildServer } from './app.js';
 import { reconcilePendingDeletions } from './file-routes.js';
+import { cleanupStaleChunkUploads } from './chunks.js';
 
 async function start() {
   const sessionSecret = process.env.SESSION_SECRET;
@@ -24,6 +25,7 @@ async function start() {
     await bootstrapInitialUser(db);
     await initializeStorage();
     await reconcilePendingDeletions(db);
+    await cleanupStaleChunkUploads();
     const app = buildServer({ database: { db, pool, lockPool } });
     app.addHook('onClose', async () => { await Promise.all([pool.end(), lockPool.end()]); });
     const port = Number(process.env.PORT ?? 3000);

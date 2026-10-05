@@ -82,6 +82,29 @@ The backend must enforce:
 
 Returns stored metadata for successful uploads.
 
+### Upload Chunks (files above the Cloudflare edge limit)
+
+Cloudflare Free proxies the public hostname and caps request bodies at
+100 MB. Files above this limit are uploaded as ordered chunk sequences:
+
+- `POST /api/files/chunks/init`
+  Body (JSON): `{ "name": "proposal.zip", "size": 966367641, "mimeType": "application/zip" }`
+  Response: `{ "uploadId": "<uuid>" }`
+- `PUT /api/files/chunks/:uploadId/:index` (0-based, strict order)
+  Body: raw chunk bytes, `Content-Type: application/octet-stream`.
+  Response: `{ "offset": <bytes stored so far> }`
+- `POST /api/files/chunks/:uploadId/finish`
+  Body (JSON): `{ "sha256": "<client-computed digest>" }`
+  Response: stored file record (same shape as `POST /api/files`), 201.
+
+Rules:
+
+- Chunks land in a dedicated scratch directory, streamed to disk.
+- `finish` concatenates (on same filesystem), verifies the client SHA-256,
+  enforces the per-file and storage limits, then records metadata once.
+- Abandoned sessions are garbage collected after `CHUNK_TTL_HOURS` (24h default).
+- Quota is re-verified before every part and before `finish` succeeds.
+
 ### `GET /api/files/:id/download`
 
 Requires authentication.

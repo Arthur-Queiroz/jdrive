@@ -55,7 +55,15 @@ Expected behavior:
 
 No in-app download percentage is required for MVP.
 
-## Response Headers
+## Cloudflare Limits
+
+The public hostname is proxied by Cloudflare on the Free plan.
+
+- Free-plan request-body limit: 100 MB. Larger uploads fail at the edge
+  (HTTP 413 from Cloudflare) and never reach the backend.
+- Uploads larger than the Cloudflare body limit must be sent as a sequence
+  of chunked part uploads, each below the edge limit.
+
 
 Downloads should provide:
 
