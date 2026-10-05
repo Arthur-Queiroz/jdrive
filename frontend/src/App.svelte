@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { createLatestRequest, fileSearchURL, formatBytes, uploadProgress } from './file-utils.js';
+  import { CHUNK_SIZE, chunkCount, createLatestRequest, fileSearchURL, formatBytes, sha256HexOfBlob, shouldChunkUpload, uploadProgress } from './file-utils.js';
   import { shouldApplyRefreshError } from './refresh-state.js';
 
   type User = { id: string; username: string };
@@ -175,6 +175,7 @@
   }
 
   function uploadFile(item: UploadItem): Promise<void> {
+    if (shouldChunkUpload(item.file.size)) return uploadFileChunked(item);
     return new Promise((resolve, reject) => {
       const data = new FormData();
       data.append('file', item.file, item.file.name);
@@ -197,6 +198,42 @@
       xhr.onerror = () => reject(new Error('Falha de conexão durante o envio.'));
       xhr.onabort = () => reject(new Error('Envio cancelado.'));
       xhr.send(data);
+    });
+  }
+
+  async function uploadFileChunked(item: UploadItem): Promise<void> {
+    const report = (loaded: number) => {
+      uploads = uploads.map((upload) => upload.key === item.key ? { ...upload, progress: uploadProgress(loaded, item.file.size) } : upload);
+    };
+    report(0);
+    const init = await request<{ uploadId: string }>('/files/chunks/init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: item.file.name, size: item.file.size, mimeType: item.file.type || undefined }),
+    });
+    let loaded = 0;
+    const parts = chunkCount(item.file.size);
+    for (let index = 0; index < parts; index += 1) {
+      const start = index * CHUNK_SIZE;
+      const blob = item.file.slice(start, Math.min(start + CHUNK_SIZE, item.file.size));
+      const response = await fetch(`${api}/files/chunks/${init.uploadId}/${index}`, {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: blob,
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error?.message ?? 'Falha ao enviar parte do arquivo.');
+      }
+      loaded += blob.size;
+      report(loaded);
+    }
+    const digest = await sha256HexOfBlob(item.file);
+    await request<{ files: StoredFile[] }>(`/files/chunks/${init.uploadId}/finish`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sha256: digest }),
     });
   }
 

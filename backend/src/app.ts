@@ -9,6 +9,7 @@ import { existsSync } from 'node:fs';
 import { createDatabase, type AppDatabase } from './db/client.js';
 import { registerAuthRoutes } from './auth-routes.js';
 import { registerFileRoutes } from './file-routes.js';
+import { cleanupStaleChunkUploads, registerChunkRoutes } from './chunks.js';
 import { AppError } from './errors.js';
 import { storageConfig } from './storage/config.js';
 
@@ -34,10 +35,13 @@ export function buildServer(options: { database?: AppDatabase; logger?: boolean 
     global: false,
     errorResponseBuilder: (_request, context) => new AppError(context.statusCode, 'RATE_LIMITED', 'Too many attempts'),
   });
+  // Raw octet-stream bodies (upload chunks): expose bytes on request.body without JSON parsing.
+  app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer' }, (_request, body, done) => done(null, body));
   app.register(multipart, { limits: { fileSize: storageConfig.maxFileBytes, files: 20, fields: 20, parts: 40 } });
   app.get('/health', async () => ({ status: 'ok' }));
   app.register(async (instance) => registerAuthRoutes(instance, database.db));
   app.register(async (instance) => registerFileRoutes(instance, database.db, database.lockPool));
+  app.register(async (instance) => registerChunkRoutes(instance, database.db, database.lockPool));
 
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   const frontendDist = path.resolve(moduleDir, '../../frontend/dist');
