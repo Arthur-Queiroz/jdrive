@@ -97,6 +97,29 @@ export function registerChunkRoutes(
 ) {
   const auth = async (request: FastifyRequest, reply: FastifyReply) => requireSession(request, reply, database);
 
+  // Resume introspection: the client asks what the server already has before
+  // re-uploading from zero after a dropped connection.
+  app.get<{ Params: { uploadId: string } }>(
+    '/api/files/chunks/:uploadId/status',
+    { preHandler: auth },
+    async (request) => {
+      const uploadId = request.params.uploadId;
+      if (!UPLOAD_ID_PATTERN.test(uploadId)) {
+        throw new AppError(400, 'INVALID_CHUNK_SESSION', 'Malformed chunked upload id');
+      }
+      const sessionDir = path.join(chunkedScratchDir, uploadId);
+      const manifest = await readManifest(sessionDir);
+      return {
+        uploadId,
+        name: manifest.name,
+        sizeBytes: manifest.sizeBytes,
+        receivedCount: manifest.receivedCount,
+        receivedBytes: manifest.receivedBytes,
+        chunkSize: CHUNK_SIZE,
+      };
+    },
+  );
+
   app.post('/api/files/chunks/init', { preHandler: auth }, async (request, reply) => {
     const body = (request.body ?? {}) as InitPayload;
     const name = typeof body.name === 'string' ? body.name.replace(/\0/g, '').trim().slice(0, 255) : '';
