@@ -251,6 +251,32 @@ test('stale chunk sessions are garbage collected after the TTL', async () => {
   await assert.rejects(stat(sessionDir), 'expired sessions are removed');
 });
 
+test('chunk status endpoint exposes received progress for resume', async () => {
+  await login();
+  const partA = Buffer.from('resume-part-a-');
+  const partB = Buffer.from('resume-part-b');
+  const full = Buffer.concat([partA, partB]);
+  const init = await app.inject({
+    method: 'POST', url: '/api/files/chunks/init', headers: { cookie },
+    payload: { name: 'resume.bin', size: full.length },
+  });
+  const { uploadId } = init.json();
+  await app.inject({
+    method: 'PUT', url: `/api/files/chunks/${uploadId}/0`, headers: { cookie, 'content-type': 'application/octet-stream' },
+    payload: partA,
+  });
+  const status = await app.inject({ method: 'GET', url: `/api/files/chunks/${uploadId}/status`, headers: { cookie } });
+  assert.equal(status.statusCode, 200);
+  assert.equal(status.json().receivedCount, 1);
+  assert.equal(status.json().receivedBytes, partA.length);
+  assert.equal(status.json().sizeBytes, full.length);
+  const missing = await app.inject({ method: 'GET', url: `/api/files/chunks/${randomUUID()}/status`, headers: { cookie } });
+  assert.equal(missing.statusCode, 404);
+  assert.equal(missing.json().error.code, 'CHUNK_SESSION_NOT_FOUND');
+  const unauth = await app.inject({ method: 'GET', url: `/api/files/chunks/${uploadId}/status` });
+  assert.equal(unauth.statusCode, 401);
+});
+
 test('cleanup tolerates a missing scratch directory', async () => {
   await rm(path.join(storageConfig.tmpDir, 'chunks'), { recursive: true, force: true });
   await cleanupStaleChunkUploads();

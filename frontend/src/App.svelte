@@ -7,7 +7,7 @@
   type StoredFile = { id: string; originalName: string; sizeBytes: number; mimeType: string | null; createdAt: string };
   type Storage = { usedBytes: number; maxBytes: number; percentage: number };
   type UploadState = 'queued' | 'uploading' | 'completed' | 'failed';
-  type UploadItem = { key: string; file: File; state: UploadState; progress: number; error?: string };
+  type UploadItem = { key: string; file: File; state: UploadState; progress: number; error?: string; sessionId?: string };
 
   let user: User | null = $state(null);
   let checking = $state(true);
@@ -206,17 +206,36 @@
       uploads = uploads.map((upload) => upload.key === item.key ? { ...upload, progress: uploadProgress(loaded, item.file.size) } : upload);
     };
     report(0);
-    const init = await request<{ uploadId: string }>('/files/chunks/init', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: item.file.name, size: item.file.size, mimeType: item.file.type || undefined }),
-    });
-    let loaded = 0;
+    let uploadId = item.sessionId;
+    let startIndex = 0;
+    if (uploadId) {
+      // Resume: ask the server how much it already holds from the last attempt.
+      try {
+        const status = await request<{ receivedCount: number; receivedBytes: number; sizeBytes: number }>(`/files/chunks/${uploadId}/status`);
+        if (status.sizeBytes === item.file.size) {
+          startIndex = status.receivedCount;
+          report(status.receivedBytes);
+        } else {
+          uploadId = undefined;
+        }
+      } catch { uploadId = undefined; }
+    }
+    if (!uploadId) {
+      const init = await request<{ uploadId: string }>('/files/chunks/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: item.file.name, size: item.file.size, mimeType: item.file.type || undefined }),
+      });
+      uploadId = init.uploadId;
+      uploads = uploads.map((upload) => upload.key === item.key ? { ...upload, sessionId: uploadId } : upload);
+      startIndex = 0;
+    }
+    let loaded = startIndex * CHUNK_SIZE;
     const parts = chunkCount(item.file.size);
-    for (let index = 0; index < parts; index += 1) {
+    for (let index = startIndex; index < parts; index += 1) {
       const start = index * CHUNK_SIZE;
       const blob = item.file.slice(start, Math.min(start + CHUNK_SIZE, item.file.size));
-      const response = await fetch(`${api}/files/chunks/${init.uploadId}/${index}`, {
+      const response = await fetch(`${api}/files/chunks/${uploadId}/${index}`, {
         method: 'PUT',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/octet-stream' },
@@ -230,7 +249,7 @@
       report(loaded);
     }
     const digest = await sha256HexOfBlob(item.file);
-    await request<{ files: StoredFile[] }>(`/files/chunks/${init.uploadId}/finish`, {
+    await request<{ files: StoredFile[] }>(`/files/chunks/${uploadId}/finish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sha256: digest }),
@@ -243,6 +262,11 @@
       await request(`/files/${encodeURIComponent(file.id)}`, { method: 'DELETE' });
       await refreshData();
     } catch (error) { alert(error instanceof Error ? error.message : 'Falha ao excluir.'); }
+  }
+
+  function retryUpload(item: UploadItem) {
+    uploads = uploads.map((upload) => upload.key === item.key ? { ...upload, state: 'queued' as const, error: undefined } : upload);
+    void processQueue();
   }
 
   function dropFiles(event: DragEvent) {
@@ -279,7 +303,7 @@
     </section>
     {#if uploads.length}
       <section class="upload-section"><div class="section-heading"><h2>Envios</h2><button class="text-button" onclick={() => uploads = uploads.filter((item) => item.state === 'queued' || item.state === 'uploading')}>Limpar concluídos</button></div>
-        <div class="upload-list">{#each uploads as item (item.key)}<article class="upload-row"><span class="file-glyph">↗</span><div class="upload-info"><div class="upload-title"><strong>{item.file.name}</strong><span class:state-done={item.state === 'completed'} class:state-failed={item.state === 'failed'} class="upload-state" role="status" aria-live="polite">{item.state === 'queued' ? 'Na fila' : item.state === 'uploading' ? 'Enviando' : item.state === 'completed' ? 'Concluído' : 'Falhou'}</span></div><div class="upload-subtitle">{formatBytes(item.file.size)}{#if item.error}<span class="error-text"> · {item.error}</span>{/if}</div>{#if item.state === 'uploading' || item.state === 'queued'}<div class="progress-track thin" role="progressbar" aria-label={`Progresso de ${item.file.name}`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={item.progress}><div class="progress-fill" style={`width:${item.progress}%`}></div></div>{/if}</div><span class="upload-percent">{item.progress}%</span></article>{/each}</div>
+        <div class="upload-list">{#each uploads as item (item.key)}<article class="upload-row"><span class="file-glyph">↗</span><div class="upload-info"><div class="upload-title"><strong>{item.file.name}</strong><span class:state-done={item.state === 'completed'} class:state-failed={item.state === 'failed'} class="upload-state" role="status" aria-live="polite">{item.state === 'queued' ? 'Na fila' : item.state === 'uploading' ? 'Enviando' : item.state === 'completed' ? 'Concluído' : 'Falhou'}</span>{#if item.state === 'failed'}<button class="text-button" onclick={() => retryUpload(item)}>Tentar novamente</button>{/if}</div><div class="upload-subtitle">{formatBytes(item.file.size)}{#if item.error}<span class="error-text"> · {item.error}</span>{/if}</div>{#if item.state === 'uploading' || item.state === 'queued'}<div class="progress-track thin" role="progressbar" aria-label={`Progresso de ${item.file.name}`} aria-valuemin="0" aria-valuemax="100" aria-valuenow={item.progress}><div class="progress-fill" style={`width:${item.progress}%`}></div></div>{/if}</div><span class="upload-percent">{item.progress}%</span></article>{/each}</div>
       </section>
     {/if}
     <section class="files-section"><div class="section-heading"><div><p class="eyebrow">SUA BIBLIOTECA</p><h2>Arquivos <span class="count">{totalFiles}</span></h2></div><label class="search-box"><span>⌕</span><input aria-label="Buscar arquivos" bind:value={search} oninput={onSearchInput} placeholder="Buscar pelo nome…" /></label></div>
