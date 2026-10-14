@@ -235,14 +235,26 @@
     for (let index = startIndex; index < parts; index += 1) {
       const start = index * CHUNK_SIZE;
       const blob = item.file.slice(start, Math.min(start + CHUNK_SIZE, item.file.size));
-      const response = await fetch(`${api}/files/chunks/${uploadId}/${index}`, {
-        method: 'PUT',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/octet-stream' },
-        body: blob,
-      });
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
+      let response: Response | undefined;
+      // Flaky mobile/Wi-Fi links drop mid-chunk; retry the same chunk a few
+      // times before failing the whole upload (resume keeps prior chunks).
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+        try {
+          response = await fetch(`${api}/files/chunks/${uploadId}/${index}`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/octet-stream' },
+            body: blob,
+          });
+          if (response.ok || (response.status >= 400 && response.status < 500 && response.status !== 408)) break;
+        } catch (error) {
+          if (attempt === 2) throw error instanceof Error && error.message ? error : new Error('Falha de conexão ao enviar parte do arquivo.');
+          response = undefined;
+        }
+      }
+      if (!response || !response.ok) {
+        const payload = response ? await response.json().catch(() => null) : null;
         throw new Error(payload?.error?.message ?? 'Falha ao enviar parte do arquivo.');
       }
       loaded += blob.size;
